@@ -5,9 +5,9 @@
 #   namespace: default
 # spec:
 #   gateways:
-#   - test/ecospend-gateway-internal-test
+#   - test/gateway-internal-test
 #   hosts:
-#   - showheaders.test.ecospend.com
+#   - showheaders.test.com
 #   http:
 #   - match:
 #     - uri:
