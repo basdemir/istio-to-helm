@@ -1,0 +1,301 @@
+autoscaleEnabled: true
+autoscaleMin: 1
+autoscaleMax: 5
+autoscaleBehavior: {}
+replicaCount: 1
+rollingMaxSurge: 100%
+rollingMaxUnavailable: 25%
+
+hub: "gcr.io/istio-release"
+tag: "1.23.5"
+variant: "distroless"
+
+# Can be a full hub/image:tag
+# image: pilot
+traceSampling: 1.0
+
+resources:
+# Resources for a small pilot install !!!!
+  # requests:
+  #   cpu: 500m
+  #   memory: 2048Mi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 2Gi
+
+# Whether to use an existing CNI installation
+cni:
+  enabled: true # Serkan - was false
+  provider: default
+
+cpu:
+  targetAverageUtilization: 80
+memory: {}
+  # targetAverageUtilization: 80
+
+keepaliveMaxServerConnectionAge: 30m
+deploymentLabels: {}
+
+sidecarInjectorWebhook:
+  rewriteAppHTTPProbe: true
+
+  # Templates defines a set of custom injection templates that can be used. For example, defining:
+  #
+  # templates:
+  #   hello: |
+  #     metadata:
+  #       labels:
+  #         hello: world
+  #
+  # Then starting a pod with the `inject.istio.io/templates: hello` annotation, will result in the pod
+  # being injected with the hello=world labels.
+  # This is intended for advanced configuration only; most users should use the built in template
+  templates: {}
+
+telemetry:
+  enabled: true
+  v2:
+    # For Null VM case now.
+    # This also enables metadata exchange.
+    enabled: true
+    # Indicate if prometheus stats filter is enabled or not
+    prometheus:
+      enabled: true
+    # stackdriver filter settings.
+    stackdriver:
+      enabled: false
+# Revision is set as 'version' label and part of the resource names when installing multiple control planes.
+revision: "stable"
+
+# Revision tags are aliases to Istio control plane revisions
+revisionTags: []
+# See https://istio.io/docs/reference/config/istio.mesh.v1alpha1/ for all available options
+# meshConfig: # SERKAN - removed
+#   enablePrometheusMerge: true
+
+meshConfig:
+  defaultConfig:
+    drainDuration: 45s
+    gatewayTopology:
+      numTrustedProxies: 2
+    holdApplicationUntilProxyStarts: true
+    proxyMetadata:
+      EXIT_ON_ZERO_ACTIVE_CONNECTIONS: "true"
+      MINIMUM_DRAIN_DURATION: 300s
+    terminationDrainDuration: 45s
+    tracing:
+      custom_tags:
+        clusterID:
+          environment:
+            name: ISTIO_META_CLUSTER_ID
+      max_path_tag_length: 256
+  defaultProviders:
+    metrics:
+    - prometheus
+    tracing:
+    - otel-tracing
+  enableAutoMtls: true
+  enablePrometheusMerge: true
+  enableTracing: true
+  extensionProviders:
+  - name: otel-tracing
+    opentelemetry:
+      port: 4317
+      service: opentelemetry-collector-collector.opentelemetry-operator.svc.cluster.local
+  - envoyFileAccessLog:
+      logFormat:
+        labels:
+          bytes_received: '%BYTES_RECEIVED%'
+          bytes_retransmitted: '%BYTES_RETRANSMITTED%'
+          bytes_sent: '%BYTES_SENT%'
+          connection_id: '%CONNECTION_ID%'
+          connection_termination_details: '%CONNECTION_TERMINATION_DETAILS%'
+          downstream_local_address: '%DOWNSTREAM_LOCAL_ADDRESS%'
+          downstream_local_dns_san: '%DOWNSTREAM_LOCAL_DNS_SAN%'
+          downstream_remote_address: '%DOWNSTREAM_REMOTE_ADDRESS%'
+          downstream_wire_bytes_sent: '%DOWNSTREAM_WIRE_BYTES_SENT%'
+          ecospend_tenant_id: '%REQ(X_TENANT_ID)%'
+          ecospend_tenant_name: '%REQ(X_TENANT_NAME)%'
+          envoy_upstream_service_time: '%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%'
+          hostname: '%HOSTNAME%'
+          method: '%REQ(:METHOD)%'
+          path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
+          protocol: '%PROTOCOL%'
+          req_authority: '%REQ(:AUTHORITY)%'
+          req_id: '%REQ(X-REQUEST-ID)%'
+          req_user_agent: '%REQ(USER-AGENT)%'
+          req_x_forwarded_for: '%REQ(X-FORWARDED-FOR)%'
+          requested_server_name: '%REQUESTED_SERVER_NAME%'
+          resp_x_envoy_upstream_service_time_ms: '%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%'
+          response_code: '%RESPONSE_CODE%'
+          response_code_details: '%RESPONSE_CODE_DETAILS%'
+          response_duration_ms: '%RESPONSE_DURATION%'
+          response_flags: '%RESPONSE_FLAGS%'
+          route_name: '%ROUTE_NAME%'
+          start_time: '[%START_TIME%]'
+          stream_id: '%STREAM_ID%'
+          total_duration_ms: '%DURATION%'
+          traceparent: '%REQ(TRACEPARENT)%'
+          upstream_cluster: '%UPSTREAM_CLUSTER%'
+          upstream_host: '%UPSTREAM_HOST%'
+          upstream_local_address: '%UPSTREAM_LOCAL_ADDRESS%'
+          upstream_remote_address: '%UPSTREAM_REMOTE_ADDRESS%'
+          upstream_request_attempt_count: '%UPSTREAM_REQUEST_ATTEMPT_COUNT%'
+          upstream_transport_failure_reason: '%UPSTREAM_TRANSPORT_FAILURE_REASON%'
+          upstream_wire_bytes_received: '%UPSTREAM_WIRE_BYTES_RECEIVED%'
+      path: /dev/stdout
+    name: file-log
+
+global:
+  # Used to locate istiod.
+  istioNamespace: istio-system
+  # List of cert-signers to allow "approve" action in the istio cluster role
+  #
+  # certSigners:
+  #   - clusterissuers.cert-manager.io/istio-ca
+  certSigners: []
+  # enable pod disruption budget for the control plane, which is used to
+  # ensure Istio control plane components are gradually upgraded or recovered.
+  defaultPodDisruptionBudget:
+    enabled: true
+
+  # A minimal set of requested resources to applied to all deployments so that
+  # Horizontal Pod Autoscaler will be able to function (if set).
+  # Each component can overwrite these default values by adding its own resources
+  # block in the relevant section below and setting the desired resources values.
+  defaultResources:
+    requests:
+      cpu: 10m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  hub: gcr.io/istio-release # Serkan - was "docker.io/istio"
+  # tag: 1.24.3
+  tag: 1.23.5
+  # Variant of the image to use.
+  # Currently supported are: [debug, distroless]
+  variant: "distroless"
+
+  # Enabled by default in master for maximising testing.
+  istiod:
+    enableAnalysis: false
+
+  # To output all istio components logs in json format by adding --log_as_json argument to each container argument
+  logAsJson: true # Serkan - was false
+
+  # Comma-separated minimum per-scope logging level of messages to output, in the form of <scope>:<level>,<scope>:<level>
+  # The control plane has different scopes depending on component, but can configure default log level across all components
+  # If empty, default scope and level will be used as configured in code
+  logging:
+    level: "default:info"
+
+  priorityClassName: ""
+
+  proxy:
+    image: proxyv2
+
+    componentLogLevel: "misc:error"
+
+    # istio ingress capture allowlist
+    # examples:
+    #     Redirect only selected ports:            --includeInboundPorts="80,8080"
+    excludeInboundPorts: ""
+    includeInboundPorts: "*"
+
+    # istio egress capture allowlist
+    # https://istio.io/docs/tasks/traffic-management/egress.html#calling-external-services-directly
+    # example: includeIPRanges: "172.30.0.0/16,172.20.0.0/16"
+    # would only capture egress traffic on those two IP Ranges, all other outbound traffic would
+    # be allowed by the sidecar
+    includeIPRanges: "*"
+    excludeIPRanges: 10.95.192.0/24,10.95.193.0/24,10.95.194.0/24,10.95.195.0/24,10.95.196.0/24,10.95.197.0/24 # Serkan - was ""
+    includeOutboundPorts: ""
+    excludeOutboundPorts: "53" # Serkan - was ""
+
+    # Log level for proxy, applies to gateways and sidecars.
+    # Expected values are: trace|debug|info|warning|error|critical|off
+    logLevel: warning
+
+    # The number of successive failed probes before indicating readiness failure.
+    readinessFailureThreshold: 4
+
+    # The initial delay for readiness probes in seconds.
+    readinessInitialDelaySeconds: 0
+
+    # The period between readiness probes.
+    readinessPeriodSeconds: 15
+
+    # Enables or disables a startup probe.
+    # For optimal startup times, changing this should be tied to the readiness probe values.
+    #
+    # If the probe is enabled, it is recommended to have delay=0s,period=15s,failureThreshold=4.
+    # This ensures the pod is marked ready immediately after the startup probe passes (which has a 1s poll interval),
+    # and doesn't spam the readiness endpoint too much
+    #
+    # If the probe is disabled, it is recommended to have delay=1s,period=2s,failureThreshold=30.
+    # This ensures the startup is reasonable fast (polling every 2s). 1s delay is used since the startup is not often ready instantly.
+    startupProbe:
+      enabled: true
+      failureThreshold: 600 # 10 minutes
+
+    # Resources for the sidecar.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 384Mi
+      # limits: # Serkan - removed
+      #   cpu: 2000m
+      #   memory: 1024Mi
+
+    # Default port for Pilot agent health checks. A value of 0 will disable health checking.
+    statusPort: 15020
+
+    # Specify which tracer to use. One of: zipkin, lightstep, datadog, stackdriver, none.
+    # If using stackdriver tracer outside GCP, set env GOOGLE_APPLICATION_CREDENTIALS to the GCP credential file.
+    tracer: "none"
+
+  proxy_init:
+    # Base name for the proxy_init container, used to configure iptables.
+    image: proxyv2
+    # Bypasses iptables idempotency handling, and attempts to apply iptables rules regardless of table state, which may cause unrecoverable failures.
+    # Do not use unless you need to work around an issue of the idempotency handling. This flag will be removed in future releases.
+    forceApplyIptables: false
+
+  ##############################################################################################
+  # The following values are found in other charts. To effectively modify these values, make   #
+  # make sure they are consistent across your Istio helm charts                                #
+  ##############################################################################################
+
+  waypoint:
+    # Resources for the waypoint proxy.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: "2"
+        memory: 1Gi
+
+    # If specified, affinity defines the scheduling constraints of waypoint pods.
+    affinity: {}
+
+    # Topology Spread Constraints for the waypoint proxy.
+    topologySpreadConstraints: []
+
+    # Node labels for the waypoint proxy.
+    nodeSelector: {}
+
+    # Tolerations for the waypoint proxy.
+    tolerations: []
+
+base:
+  # For istioctl usage to disable istio config crds in base
+  enableIstioConfigCRDs: true

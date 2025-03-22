@@ -1,0 +1,14 @@
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  labels:
+    app.kubernetes.io/instance: istio-resources
+  name: ingress-gw-logs
+  namespace: istio-system
+spec:
+  accessLogging:
+  - providers:
+    - name: file-log
+  selector:
+    matchLabels:
+      component: ingressgateway

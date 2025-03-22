@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ingressgateway
+    app.kubernetes.io/instance: istio-ingressgateway
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: istio-ingressgateway
+    app.kubernetes.io/part-of: istio
+    app.kubernetes.io/version: 1.25.0
+    helm.sh/chart: gateway-1.25.0
+    install.operator.istio.io/owning-resource: istio
+    install.operator.istio.io/owning-resource-namespace: istio-system
+    istio: ingressgateway
+    istio.io/dataplane-mode: none
+    istio.io/rev: stable
+    operator.istio.io/component: IngressGateways
+    operator.istio.io/managed: Reconcile
+    operator.istio.io/version: 1.23.5
+    release: istio
+    version: stable
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  clusterIP: 10.0.186.186
+  clusterIPs:
+  - 10.0.186.186
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: status-port
+    port: 15021
+  - name: http2
+    port: 80
+    targetPort: 8080
+  - name: https
+    port: 443
+    targetPort: 8443
+  selector:
+    app: ingressgateway
+    istio: ingressgateway
+    version: stable

@@ -1,0 +1,266 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  labels:
+    app.kubernetes.io/instance: istio
+    env: test
+  name: istio
+  namespace: istio-system
+spec:
+  profile: default
+  revision: stable
+  tag: 1.23.5-distroless
+  hub: "gcr.io/istio-release"
+  # hub: 562768029357.dkr.ecr.eu-west-2.amazonaws.com/istio
+  components:
+    base:
+      enabled: true
+    cni:
+      enabled: true
+      k8s:
+        priorityClassName: system-node-critical
+    egressGateways:
+    - enabled: false
+      name: istio-egressgateway
+    ingressGateways:
+    - enabled: true
+      k8s:
+        overlays:
+        - kind: Deployment
+          name: istio-ingressgateway
+          patches:
+          - path: spec.minReadySeconds
+            value: 20
+          - path: spec.template.spec.terminationGracePeriodSeconds
+            value: 60
+      label:
+        app: ingressgateway
+        istio: ingressgateway
+        version: stable
+      name: istio-ingressgateway
+    - enabled: true
+      k8s:
+        hpaSpec:
+          maxReplicas: 5
+          minReplicas: 1
+        overlays:
+        - kind: Deployment
+          name: istio-ingressgateway-internal
+          patches:
+          - path: spec.minReadySeconds
+            value: 20
+          - path: spec.template.spec.terminationGracePeriodSeconds
+            value: 60
+      label:
+        app: ingressgateway-internal
+        istio: ingressgateway-internal
+        version: stable
+      name: istio-ingressgateway-internal
+    istiodRemote:
+      enabled: false
+    pilot:
+      enabled: true
+      k8s:
+        podDisruptionBudget:
+          maxUnavailable: 1
+        resources:
+          limits:
+            cpu: 500m
+            memory: 2Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        strategy:
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 0
+          type: RollingUpdate
+  meshConfig:
+    defaultConfig:
+      drainDuration: 45s
+      gatewayTopology:
+        numTrustedProxies: 2
+      holdApplicationUntilProxyStarts: true
+      proxyMetadata:
+        EXIT_ON_ZERO_ACTIVE_CONNECTIONS: "true"
+        MINIMUM_DRAIN_DURATION: 300s
+      terminationDrainDuration: 45s
+      tracing:
+        custom_tags:
+          clusterID:
+            environment:
+              name: ISTIO_META_CLUSTER_ID
+        max_path_tag_length: 256
+    defaultProviders:
+      metrics:
+      - prometheus
+      tracing:
+      - otel-tracing
+    enableAutoMtls: true
+    enablePrometheusMerge: true
+    enableTracing: true
+    extensionProviders:
+    - name: otel-tracing
+      opentelemetry:
+        port: 4317
+        service: opentelemetry-collector-collector.opentelemetry-operator.svc.cluster.local
+    - envoyFileAccessLog:
+        logFormat:
+          labels:
+            bytes_received: '%BYTES_RECEIVED%'
+            bytes_retransmitted: '%BYTES_RETRANSMITTED%'
+            bytes_sent: '%BYTES_SENT%'
+            connection_id: '%CONNECTION_ID%'
+            connection_termination_details: '%CONNECTION_TERMINATION_DETAILS%'
+            downstream_local_address: '%DOWNSTREAM_LOCAL_ADDRESS%'
+            downstream_local_dns_san: '%DOWNSTREAM_LOCAL_DNS_SAN%'
+            downstream_remote_address: '%DOWNSTREAM_REMOTE_ADDRESS%'
+            downstream_wire_bytes_sent: '%DOWNSTREAM_WIRE_BYTES_SENT%'
+            ecospend_tenant_id: '%REQ(X_TENANT_ID)%'
+            ecospend_tenant_name: '%REQ(X_TENANT_NAME)%'
+            envoy_upstream_service_time: '%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%'
+            hostname: '%HOSTNAME%'
+            method: '%REQ(:METHOD)%'
+            path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
+            protocol: '%PROTOCOL%'
+            req_authority: '%REQ(:AUTHORITY)%'
+            req_id: '%REQ(X-REQUEST-ID)%'
+            req_user_agent: '%REQ(USER-AGENT)%'
+            req_x_forwarded_for: '%REQ(X-FORWARDED-FOR)%'
+            requested_server_name: '%REQUESTED_SERVER_NAME%'
+            resp_x_envoy_upstream_service_time_ms: '%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%'
+            response_code: '%RESPONSE_CODE%'
+            response_code_details: '%RESPONSE_CODE_DETAILS%'
+            response_duration_ms: '%RESPONSE_DURATION%'
+            response_flags: '%RESPONSE_FLAGS%'
+            route_name: '%ROUTE_NAME%'
+            start_time: '[%START_TIME%]'
+            stream_id: '%STREAM_ID%'
+            total_duration_ms: '%DURATION%'
+            traceparent: '%REQ(TRACEPARENT)%'
+            upstream_cluster: '%UPSTREAM_CLUSTER%'
+            upstream_host: '%UPSTREAM_HOST%'
+            upstream_local_address: '%UPSTREAM_LOCAL_ADDRESS%'
+            upstream_remote_address: '%UPSTREAM_REMOTE_ADDRESS%'
+            upstream_request_attempt_count: '%UPSTREAM_REQUEST_ATTEMPT_COUNT%'
+            upstream_transport_failure_reason: '%UPSTREAM_TRANSPORT_FAILURE_REASON%'
+            upstream_wire_bytes_received: '%UPSTREAM_WIRE_BYTES_RECEIVED%'
+        path: /dev/stdout
+      name: file-log
+  values:
+    base:
+      enableCRDTemplates: false
+      validationURL: ""
+    gateways:
+      istio-egressgateway:
+        autoscaleEnabled: true
+        autoscaleMax: 6
+        autoscaleMin: 2
+        name: istio-egressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/egressgateway-certs
+          name: egressgateway-certs
+          secretName: istio-egressgateway-certs
+        - mountPath: /etc/istio/egressgateway-ca-certs
+          name: egressgateway-ca-certs
+          secretName: istio-egressgateway-ca-certs
+        type: ClusterIP
+      istio-ingressgateway:
+        autoscaleEnabled: true
+        autoscaleMax: 9
+        autoscaleMin: 1 # SERKAN CHANGED FROM 2 TO 1
+        name: istio-ingressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/ingressgateway-certs
+          name: ingressgateway-certs
+          secretName: istio-ingressgateway-certs
+        - mountPath: /etc/istio/ingressgateway-ca-certs
+          name: ingressgateway-ca-certs
+          secretName: istio-ingressgateway-ca-certs
+        type: ClusterIP
+    global:
+      configValidation: true
+      defaultPodDisruptionBudget:
+        enabled: true
+      defaultResources:
+        requests:
+          cpu: 10m
+      imagePullPolicy: ""
+      istioNamespace: istio-system
+      istiod:
+        enableAnalysis: false
+      jwtPolicy: third-party-jwt
+      logAsJson: false
+      logging:
+        level: default:info
+      mountMtlsCerts: false
+      multiCluster:
+        clusterName: ""
+        enabled: false
+      network: ""
+      omitSidecarInjectorConfigMap: false
+      operatorManageWebhooks: false
+      pilotCertProvider: istiod
+      priorityClassName: ""
+      proxy:
+        autoInject: enabled
+        clusterDomain: cluster.local
+        componentLogLevel: misc:error
+        enableCoreDump: false
+        excludeIPRanges: 10.95.192.0/24,10.95.193.0/24,10.95.194.0/24,10.95.195.0/24,10.95.196.0/24,10.95.197.0/24
+        excludeInboundPorts: ""
+        excludeOutboundPorts: "53"
+        image: proxyv2
+        logLevel: warning
+        privileged: false
+        readinessFailureThreshold: 30
+        readinessInitialDelaySeconds: 1
+        readinessPeriodSeconds: 2
+        resources:
+          limits:
+            cpu: 200m
+            memory: 384Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        statusPort: 15020
+        tracer: zipkin
+      proxy_init:
+        image: proxyv2
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+          requests:
+            cpu: 10m
+            memory: 10Mi
+      sds:
+        token:
+          aud: istio-ca
+      sts:
+        servicePort: 0
+    istiodRemote:
+      injectionURL: ""
+    pilot:
+      autoscaleEnabled: true
+      autoscaleMax: 9
+      autoscaleMin: 2
+      configMap: true
+      cpu:
+        targetAverageUtilization: 80
+      env:
+        ENABLE_LEGACY_FSGROUP_INJECTION: false
+        PILOT_ENABLE_STATUS: true
+      image: pilot
+      keepaliveMaxServerConnectionAge: 30m
+      traceSampling: 1
+    sidecarInjectorWebhook:
+      neverInjectSelector:
+      - matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - kube-prometheus-stack-admission-create
+          - kube-prometheus-stack-admission-patch
+          - alertmanager
+      rewriteAppHTTPProbe: true

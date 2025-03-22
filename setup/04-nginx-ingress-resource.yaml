@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.3"
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "true"  
+
+  namespace: istio-system
+  name: nginx-test
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: showheaders.kind.ext.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: "istio-ingressgateway"
+            port:
+              # number: 80
+              number: 443
+  - host: showheaders.kind.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: "istio-ingressgateway"
+            port:
+              # number: 80
+              number: 443
+  - host: showheaders.kind.int.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: "istio-ingressgateway-internal"
+            port:
+              # number: 80
+              number: 443
+  tls:
+    - secretName: mytest-project-tls-ext-nginx
+      # hosts:
+      # - '*.kind.ext.local'
+      # - kind.ext.local
+      # - '*.kind.net'
+      # - kind.net
